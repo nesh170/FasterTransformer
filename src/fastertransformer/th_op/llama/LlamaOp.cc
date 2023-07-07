@@ -83,6 +83,20 @@ LlamaOp::~LlamaOp()
     delete ftllama;
 }
 
+void LlamaOp::load_weights(std::vector<th::Tensor> weights)
+{
+    for (auto t : weights) {
+        CHECK_INPUT(t, st_);
+    }
+    ftllama->load_weights(weights);
+}
+
+void LlamaOp::unload_weights()
+{
+    ftllama->unload_weights();
+}
+
+
 std::vector<th::Tensor> LlamaOp::forward(th::Tensor               input_ids,
                                            th::Tensor               input_lengths,
                                            const int64_t            output_len,
@@ -165,4 +179,6 @@ static auto fasterTransformerLlamaTHS =
                               int64_t,
                               bool,
                               std::vector<th::Tensor>>())
-        .def("forward", &torch_ext::LlamaOp::forward);
+        .def("forward", &torch_ext::LlamaOp::forward)
+        .def("load_weights", &torch_ext::LlamaOp::load_weights)
+        .def("unload_weights", &torch_ext::LlamaOp::unload_weights);

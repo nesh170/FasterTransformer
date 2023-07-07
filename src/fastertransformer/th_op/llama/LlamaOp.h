@@ -44,6 +44,9 @@ public:
                          th::optional<th::Tensor> repetition_penalty_opt,
                          th::optional<th::Tensor> random_seed_opt,
                          th::optional<int64_t>    return_cum_log_probs_opt) = 0;
+    
+    virtual void load_weights(std::vector<th::Tensor> weights) = 0;
+    virtual void unload_weights() = 0;
 };
 
 template<typename T>
@@ -75,52 +78,14 @@ public:
         use_gptj_residual_(use_gptj_residual),
         weights_(weights),
         tensor_para_size_(tensor_para_size),
-        pipeline_para_size_(pipeline_para_size)
+        pipeline_para_size_(pipeline_para_size),
+        max_seq_len_(max_seq_len)
     {
         ft::check_cuda_error(cublasLtCreate(&cublasltHandle_));
         cublas_algo_map_      = new ft::cublasAlgoMap(GEMM_CONFIG, "");
         cublas_wrapper_mutex_ = new std::mutex();
 
         ftNcclInitialize(tensor_para_, pipeline_para_, tensor_para_size, pipeline_para_size);
-
-        Llama_weights_.resizeLayer(layer_num_);
-        for (int i = 0; i < (int)layer_num_; i++) {
-            Llama_weights_.decoder_layer_weights[i]->pre_layernorm_weights.beta =
-                get_ptr<T>(weights_[i + 0 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->pre_layernorm_weights.gamma =
-                get_ptr<T>(weights_[i + 1 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.query_weight.kernel =
-                get_ptr<T>(weights_[i + 2 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.query_weight.bias =
-                get_ptr<T>(weights_[i + 3 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.attention_output_weight.kernel =
-                get_ptr<T>(weights_[i + 4 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.attention_output_weight.bias =
-                get_ptr<T>(weights_[i + 5 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight.kernel = 
-                get_ptr<T>(weights_[i + 6 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight.bias = 
-                get_ptr<T>(weights_[i + 7 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight2.kernel = 
-                get_ptr<T>(weights_[i + 8 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight2.bias = 
-                get_ptr<T>(weights_[i + 9 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->ffn_weights.output_weight.kernel =
-                get_ptr<T>(weights_[i + 10 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->ffn_weights.output_weight.bias =
-                get_ptr<T>(weights_[i + 11 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->post_attention_layernorm_weights.beta = 
-                get_ptr<T>(weights_[i + 12 * layer_num_]);
-            Llama_weights_.decoder_layer_weights[i]->post_attention_layernorm_weights.gamma = 
-                get_ptr<T>(weights_[i + 13 * layer_num_]);
-        }
-
-        Llama_weights_.pre_decoder_embedding_table   = get_ptr<T>(weights_[14 * layer_num_ + 0]);
-        Llama_weights_.post_decoder_layernorm.beta   = get_ptr<T>(weights_[14 * layer_num_ + 1]);
-        Llama_weights_.post_decoder_layernorm.gamma  = get_ptr<T>(weights_[14 * layer_num_ + 2]);
-        Llama_weights_.post_decoder_embedding.kernel = get_ptr<T>(weights_[14 * layer_num_ + 3]);
-
-        Llama_weights_.setMaxSeqLen(max_seq_len);
 
         ft::check_cuda_error(cudaGetDeviceProperties(&prop_, 0));
     }
@@ -288,6 +253,55 @@ public:
         }
     }
 
+    void load_weights(std::vector<th::Tensor> weights) {
+        weights_ = weights;
+        Llama_weights_ = ft::LlamaWeight<T>();
+
+        Llama_weights_.resizeLayer(layer_num_);
+        for (int i = 0; i < (int)layer_num_; i++) {
+            Llama_weights_.decoder_layer_weights[i]->pre_layernorm_weights.beta =
+                get_ptr<T>(weights_[i + 0 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->pre_layernorm_weights.gamma =
+                get_ptr<T>(weights_[i + 1 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.query_weight.kernel =
+                get_ptr<T>(weights_[i + 2 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.query_weight.bias =
+                get_ptr<T>(weights_[i + 3 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.attention_output_weight.kernel =
+                get_ptr<T>(weights_[i + 4 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->self_attention_weights.attention_output_weight.bias =
+                get_ptr<T>(weights_[i + 5 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight.kernel = 
+                get_ptr<T>(weights_[i + 6 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight.bias = 
+                get_ptr<T>(weights_[i + 7 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight2.kernel = 
+                get_ptr<T>(weights_[i + 8 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->ffn_weights.intermediate_weight2.bias = 
+                get_ptr<T>(weights_[i + 9 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->ffn_weights.output_weight.kernel =
+                get_ptr<T>(weights_[i + 10 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->ffn_weights.output_weight.bias =
+                get_ptr<T>(weights_[i + 11 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->post_attention_layernorm_weights.beta = 
+                get_ptr<T>(weights_[i + 12 * layer_num_]);
+            Llama_weights_.decoder_layer_weights[i]->post_attention_layernorm_weights.gamma = 
+                get_ptr<T>(weights_[i + 13 * layer_num_]);
+        }
+
+        Llama_weights_.pre_decoder_embedding_table   = get_ptr<T>(weights_[14 * layer_num_ + 0]);
+        Llama_weights_.post_decoder_layernorm.beta   = get_ptr<T>(weights_[14 * layer_num_ + 1]);
+        Llama_weights_.post_decoder_layernorm.gamma  = get_ptr<T>(weights_[14 * layer_num_ + 2]);
+        Llama_weights_.post_decoder_embedding.kernel = get_ptr<T>(weights_[14 * layer_num_ + 3]);
+
+        Llama_weights_.setMaxSeqLen(max_seq_len_);
+    }
+
+    void unload_weights() {
+        weights_.clear();
+        Llama_weights_ = ft::LlamaWeight<T>();
+    }
+
 private:
     const size_t head_num_;
     const size_t size_per_head_;
@@ -314,6 +328,8 @@ private:
 
     int64_t tensor_para_size_;
     int64_t pipeline_para_size_;
+
+    size_t max_seq_len_;
 };
 
 class LlamaOp: public th::jit::CustomClassHolder {
@@ -347,6 +363,10 @@ public:
                                th::optional<th::Tensor> repetition_penalty_opt,
                                th::optional<th::Tensor> random_seed_opt,
                                th::optional<int64_t>    return_cum_log_probs_opt);
+    
+    void load_weights(std::vector<th::Tensor> weights);
+
+    void unload_weights();
 
 private:
     const at::ScalarType    st_;
