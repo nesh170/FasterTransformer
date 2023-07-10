@@ -419,7 +419,6 @@ void llama_example(const INIReader reader)
 
     cudaProfilerStart();
     // warm up
-    ite = 1;
     ft_nvtx::setScope("warmup_time");
     PUSH_RANGE("warmup time")
 
@@ -478,6 +477,7 @@ void llama_example(const INIReader reader)
     cudaDeviceSynchronize();
     gettimeofday(&start, NULL);
 
+    ite = 4;
     ft_nvtx::setScope("total_time");
     PUSH_RANGE("total time")
     for (int i = 0; i < ite; ++i) {
@@ -493,7 +493,7 @@ void llama_example(const INIReader reader)
     cudaProfilerStop();
 
     printf("[INFO] request_batch_size %ld beam_width %ld head_num %ld size_per_head %ld total_output_len %d"
-           " decoder_layers %ld vocab_size %ld FT-CPP-decoding-beamsearch-time %.2f ms\n",
+           " decoder_layers %ld vocab_size %ld FT-CPP-decoding-beamsearch-time %.2f ms, total: %d ites\n",
            request_batch_size,
            beam_width,
            head_num,
@@ -501,7 +501,7 @@ void llama_example(const INIReader reader)
            total_output_len,
            decoder_layers,
            vocab_size,
-           ((end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) * 0.001) / ite);
+           ((end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) * 0.001) / ite, ite);
 
     ftNcclParamDestroy(tensor_para);
     ftNcclParamDestroy(pipeline_para);
