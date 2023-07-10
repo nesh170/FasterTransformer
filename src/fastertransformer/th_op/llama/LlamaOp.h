@@ -205,8 +205,10 @@ public:
                                           false,           // is_free_buffer_after_forward
                                           &prop_,          // cuda_device_prop
                                           attention_type,  // attention_type
+                                          0,               //int8_mode
                                           nullptr,         // custom_all_reduce_comm
-                                          0);              // enable_custom_all_reduce
+                                          0,               // enable_custom_all_reduce
+                                          1.0f);           // shared_contexts_ratio   
 
         std::vector<uint32_t> output_seq_len(request_batch_size, total_output_len);
 
