@@ -254,6 +254,9 @@ class Llama(nn.Module):
                                                                self.layer_num, self.vocab_size, self.rotary_embedding_dim, self.layernorm_eps,
                                                                self.start_id, self.end_id, self.tensor_para_size, self.pipeline_para_size,
                                                                self.max_seq_len, self.use_gptj_residual, self.weights.w)
+        
+        # load the weights manually here
+        self.model.load_weights(self.weights.w)
 
         self.build_model = True
 
