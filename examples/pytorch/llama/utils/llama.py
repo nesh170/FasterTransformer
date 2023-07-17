@@ -27,6 +27,7 @@ import numpy as np
 import torch.distributed as dist
 
 str_type_map = {"fp32": torch.float32, "fp16": torch.float16}
+data_type_to_scalar__map = {"fp32": torch.float, "fp16": torch.half}
 
 class LlamaWeights(object):
     def __init__(self, 
@@ -253,7 +254,7 @@ class Llama(nn.Module):
         self.model = torch.classes.FasterTransformer.LlamaOp(self.head_num, self.size_per_head, self.inter_size,
                                                                self.layer_num, self.vocab_size, self.rotary_embedding_dim, self.layernorm_eps,
                                                                self.start_id, self.end_id, self.tensor_para_size, self.pipeline_para_size,
-                                                               self.max_seq_len, self.use_gptj_residual, self.weights.w)
+                                                               self.max_seq_len, self.use_gptj_residual, data_type_to_scalar__map[self.inference_data_type])
         
         # load the weights manually here
         self.model.load_weights(self.weights.w)

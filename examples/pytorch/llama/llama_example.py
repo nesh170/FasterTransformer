@@ -115,12 +115,15 @@ def main():
 
     mpi_discovery()
 
+    rank = int(os.environ['RANK'])
+    local_rank = int(os.environ['LOCAL_RANK'])
+    world_size = int(os.environ['WORLD_SIZE'])
+
     #if tensor_para_size * pipeline_para_size > 1:
-    dist.init_process_group(backend=dist.Backend.NCCL)
+    dist.init_process_group(backend=dist.Backend.NCCL, rank=rank, world_size=world_size)
     rank = dist.get_rank() if dist.is_initialized() else 0
     device_count = dist.get_world_size() if dist.is_initialized() else 1
-    device = rank % device_count
-    torch.cuda.set_device(device)
+    torch.cuda.set_device(local_rank)
     device = torch.cuda.current_device()
 
     # sentencepiece needed

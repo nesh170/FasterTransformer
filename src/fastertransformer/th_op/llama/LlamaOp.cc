@@ -33,13 +33,9 @@ LlamaOp::LlamaOp(const int64_t                head_num,
                      const int64_t            pipeline_para_size,
                      const int64_t            max_seq_len,
                      const bool               use_gptj_residual,
-                     const vector<th::Tensor> weights):
-    st_(weights[0].scalar_type())
+                     const at::ScalarType     scalar_type):
+    st_(scalar_type)
 {
-    for (auto t : weights) {
-        CHECK_INPUT(t, st_);
-    }
-
     switch (st_) {
         case at::ScalarType::Float:
             ftllama = new FTLlama<float>((size_t)head_num,
@@ -54,8 +50,7 @@ LlamaOp::LlamaOp(const int64_t                head_num,
                                          tensor_para_size,
                                          pipeline_para_size,
                                          (size_t)max_seq_len,
-                                         use_gptj_residual,
-                                         weights);
+                                         use_gptj_residual);
             break;
         case at::ScalarType::Half:
             ftllama = new FTLlama<half>((size_t)head_num,
@@ -70,8 +65,7 @@ LlamaOp::LlamaOp(const int64_t                head_num,
                                         tensor_para_size,
                                         pipeline_para_size,
                                         (size_t)max_seq_len,
-                                        use_gptj_residual,
-                                        weights);
+                                        use_gptj_residual);
             break;
         default:
             throw std::runtime_error("Wrong Tensor type.");
@@ -178,7 +172,7 @@ static auto fasterTransformerLlamaTHS =
                               int64_t,
                               int64_t,
                               bool,
-                              std::vector<th::Tensor>>())
+                              at::ScalarType>())
         .def("forward", &torch_ext::LlamaOp::forward)
         .def("load_weights", &torch_ext::LlamaOp::load_weights)
         .def("unload_weights", &torch_ext::LlamaOp::unload_weights);

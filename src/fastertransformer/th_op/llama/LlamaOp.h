@@ -64,8 +64,7 @@ public:
             const int64_t            tensor_para_size,
             const int64_t            pipeline_para_size,
             const size_t             max_seq_len,
-            const bool               use_gptj_residual,
-            const vector<th::Tensor> weights):
+            const bool               use_gptj_residual):
         head_num_(head_num),
         size_per_head_(size_per_head),
         inter_size_(inter_size),
@@ -76,7 +75,6 @@ public:
         start_id_(start_id),
         end_id_(end_id),
         use_gptj_residual_(use_gptj_residual),
-        weights_(weights),
         tensor_para_size_(tensor_para_size),
         pipeline_para_size_(pipeline_para_size),
         max_seq_len_(max_seq_len)
@@ -347,7 +345,7 @@ public:
             const int64_t            pipeline_para_size,
             const int64_t            max_seq_len,
             const bool               use_gptj_residual,
-            const vector<th::Tensor> weights);
+            at::ScalarType           scalar_type);
 
     ~LlamaOp();
 
