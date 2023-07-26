@@ -91,6 +91,10 @@ LlamaWeight<T>::~LlamaWeight()
         post_decoder_embedding.kernel = nullptr;
         is_maintain_buffer            = false;
     }
+
+    for (int i = 0; i < num_layer_; i++) {
+        delete decoder_layer_weights[i];
+    }
 }
 
 template<typename T>
